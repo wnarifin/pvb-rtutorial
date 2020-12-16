@@ -149,7 +149,7 @@ index_2 = (sum(cad$R)+1):nrow(cad)  # unverified U
 index_3 = (nrow(cad)+1):nrow(cad_pseudo)  # unverified 2U
 # M-1 model, components: a = disease, b = diagnostic, c = missing data mechanism
 # initialize values
-weight_k = weight_ka = weight_kb = weight_kc = rep(1, nrow(cad_pseudo))  # init weight = 1 for all
+weight_k = rep(1, nrow(cad_pseudo))  # init weight = 1 for all
 coef_1 = vector("list", 0)
 max_t = 500  # may increase
 # EM Algorithm Iteration
@@ -190,7 +190,7 @@ sp4 = 1 - predict(model1b, list(D=0), type="response"); sp4  # P(T=0|D=0)
 # EM Algorithm, Konsinski & Barnhart, 2003, MNAR
 # M-2 model, components: a = disease, b = diagnostic, c = missing data mechanism
 # initialize values
-weight_k = weight_ka = weight_kb = weight_kc = rep(1, nrow(cad_pseudo))  # init weight = 1 for all
+weight_k = rep(1, nrow(cad_pseudo))  # init weight = 1 for all
 coef_2 = vector("list", 0)
 max_t = 500  # may increase
 # EM Algorithm Iteration
