@@ -67,9 +67,9 @@ str(cad_mi)
 # loop to calculate sn & spe
 sn3m = sp3m = rep(NA, m)
 for (i in 1:m) {
-  tbl = table(T=cad_mi[,1],D=cad_mi[,m+1])
+  tbl = table(T=cad_mi[,i],D=cad_mi[,m+i])
   sn3m[i] = tbl[2,2]/sum(tbl[,2])
-  sp3m = tbl[1,1]/sum(tbl[,1])
+  sp3m[i] = tbl[1,1]/sum(tbl[,1])
 }
 sn3 = mean(sn3m); sn3
 sp3 = mean(sp3m); sp3
@@ -84,9 +84,9 @@ cad_mi = complete(data_impute, action = "repeated")  # MI data
 # loop to calculate sn & spe
 sn3m = sp3m = rep(NA, m)
 for (i in 1:m) {
-  tbl = table(T=cad_mi[,1],D=cad_mi[,m+1])
+  tbl = table(T=cad_mi[,i],D=cad_mi[,m+i])
   sn3m[i] = tbl[2,2]/sum(tbl[,2])
-  sp3m = tbl[1,1]/sum(tbl[,1])
+  sp3m[i] = tbl[1,1]/sum(tbl[,1])
 }
 sn3x = mean(sn3m); sn3x
 sp3x = mean(sp3m); sp3x
@@ -103,9 +103,9 @@ str(cad_mi)
 # loop to calculate sn & spe
 sn3m = sp3m = rep(NA, m)
 for (i in 1:m) {
-  tbl = table(T=cad_mi[,1],D=cad_mi[,m+1])
+  tbl = table(T=cad_mi[,i],D=cad_mi[,m+i])
   sn3m[i] = tbl[2,2]/sum(tbl[,2])
-  sp3m = tbl[1,1]/sum(tbl[,1])
+  sp3m[i] = tbl[1,1]/sum(tbl[,1])
 }
 sn3a = mean(sn3m); sn3a
 sp3a = mean(sp3m); sp3a
@@ -120,9 +120,9 @@ cad_mi = complete(data_impute, action = "repeated")  # MI data
 # loop to calculate sn & spe
 sn3m = sp3m = rep(NA, m)
 for (i in 1:m) {
-  tbl = table(T=cad_mi[,1],D=cad_mi[,m+1])
+  tbl = table(T=cad_mi[,i],D=cad_mi[,m+i])
   sn3m[i] = tbl[2,2]/sum(tbl[,2])
-  sp3m = tbl[1,1]/sum(tbl[,1])
+  sp3m[i] = tbl[1,1]/sum(tbl[,1])
 }
 sn3ax = mean(sn3m); sn3ax
 sp3ax = mean(sp3m); sp3ax
@@ -229,10 +229,10 @@ coef_2[[max_t]]
 cad_1 = cad_0 = cad
 cad_1$D = 1  # set all D to 1
 cad_0$D = 0  # set all D to 0
-sn4x = mean(prediction(model2b, data=cad_1)$fitted * prediction(model2a, data=cad_1)$fitted) / 
-  mean(prediction(model2a, data=cad_1)$fitted); sn4x      # P(T=1|D=1,X1)
-sp4x = mean((1 - prediction(model2b, data=cad_0)$fitted) * (1 - prediction(model2a, data=cad_0)$fitted)) /
-  mean(1 - prediction(model2a, data=cad_0)$fitted); sp4x  # P(T=0|D=0,X1)
+sn4x = sum(prediction(model2b, data=cad_1)$fitted * prediction(model2a, data=cad_1)$fitted) / 
+  sum(prediction(model2a, data=cad_1)$fitted); sn4x      # P(T=1|D=1,X1)
+sp4x = sum((1 - prediction(model2b, data=cad_0)$fitted) * (1 - prediction(model2a, data=cad_0)$fitted)) /
+  sum(1 - prediction(model2a, data=cad_0)$fitted); sp4x  # P(T=0|D=0,X1)
 
 # Compare
 snsp = c(sn0,sp0,sn1,sp1,sn2,sp2,sn2x,sp2x,sn3,sp3,sn3x,sp3x,sn3a,sp3a,sn3ax,sp3ax,
@@ -244,5 +244,5 @@ rownames(snsp) = c("Complete-case Analysis","B&G Count",
                    "Multiple Imputation (PMM)","Multiple Imputation with Covariate (PMM)",
                    "EM Algorithm MNAR","EM Algorithm MNAR with Covariate")
 colnames(snsp) = c("Sensitivity","Specificity")
-tbl_compare = round(snsp, 3); tbl_compare
-knitr::kable(tbl_compare, "rst")
+tbl_compare = round(snsp, 3)
+knitr::kable(tbl_compare, "simple")
