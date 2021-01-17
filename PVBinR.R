@@ -8,8 +8,8 @@ cad = read.csv("2003kosinski_cad.csv")
 str(cad)
 
 # Verification status
-cad$R = 1  # R = Verified: 1 = yes, 0 = no
-cad[is.na(cad$D), "R"] = 0
+cad$V = 1  # V = Verified: 1 = yes, 0 = no
+cad[is.na(cad$D), "V"] = 0
 
 # Percent missing
 mean(is.na(cad$D))*100
@@ -32,11 +32,11 @@ cad_[is.na(cad_$D), "D"] = -1  # recode NA as -1, this will be -1*0=0 for unveri
 
 # B&G, Count Method in Begg & Greenes 1983
 tbl_ = table(cad_[, c("T", "D")]); addmargins(tbl_)  # -1 column -- unverified cases
-upper = (sum(cad_$T)/nrow(cad_)) * (sum(cad_$D*cad_$T*cad_$R)/sum(cad_$T*cad_$R))
-lower = (sum(1-cad_$T)/nrow(cad_)) * (sum(cad_$D*(1-cad_$T)*cad_$R)/sum((1-cad_$T)*cad_$R))
+upper = (sum(cad_$T)/nrow(cad_)) * (sum(cad_$D*cad_$T*cad_$V)/sum(cad_$T*cad_$V))
+lower = (sum(1-cad_$T)/nrow(cad_)) * (sum(cad_$D*(1-cad_$T)*cad_$V)/sum((1-cad_$T)*cad_$V))
 sn1 = upper / (upper+lower); sn1
-upper1 = (sum(1-cad_$T)/nrow(cad_)) * (sum((1-cad_$D)*(1-cad_$T)*cad_$R)/sum((1-cad_$T)*cad_$R))
-lower1 = (sum(cad_$T)/nrow(cad_)) * (sum((1-cad_$D)*cad_$T*cad_$R)/sum(cad_$T*cad_$R))
+upper1 = (sum(1-cad_$T)/nrow(cad_)) * (sum((1-cad_$D)*(1-cad_$T)*cad_$V)/sum((1-cad_$T)*cad_$V))
+lower1 = (sum(cad_$T)/nrow(cad_)) * (sum((1-cad_$D)*cad_$T*cad_$V)/sum(cad_$T*cad_$V))
 sp1 = upper1 / (upper1+lower1); sp1
 
 # B&G, Regression Method in Alonzo 2005
@@ -129,23 +129,23 @@ sp3ax = mean(sp3m); sp3ax
 
 # EM Algorithm, Konsinski & Barnhart, 2003, MNAR
 # pseudo-data
-cad$R = 1  # R = Verified: 1 = yes, 0 = no
-cad[is.na(cad$D), "R"] = 0
-cad_pseudo = rbind(cad, cad[cad$R == 0, ])  # replicate U observation
+cad$V = 1  # V = Verified: 1 = yes, 0 = no
+cad[is.na(cad$D), "V"] = 0
+cad_pseudo = rbind(cad, cad[cad$V == 0, ])  # replicate U observation
 str(cad_pseudo)
 sum(is.na(cad_pseudo$D))  # 2217*2 = 4434
 table(cad_pseudo$T)
 # create 0, 1 for 2U rows
-cad_pseudo[(sum(cad$R)+1):nrow(cad), "D"] = 0        # 1st U rows
+cad_pseudo[(sum(cad$V)+1):nrow(cad), "D"] = 0        # 1st U rows
 cad_pseudo[(nrow(cad)+1):nrow(cad_pseudo), "D"] = 1  # 2nd U rows
 # view
 head(cad_pseudo)
-head(cad_pseudo[(sum(cad$R)+1):nrow(cad),])
+head(cad_pseudo[(sum(cad$V)+1):nrow(cad),])
 head(cad_pseudo[(nrow(cad)+1):nrow(cad_pseudo),])
 n_u = nrow(cad_pseudo)  # total cases + U
 # index k
-index_1 = which(cad$R == 1)  # verified
-index_2 = (sum(cad$R)+1):nrow(cad)  # unverified U
+index_1 = which(cad$V == 1)  # verified
+index_2 = (sum(cad$V)+1):nrow(cad)  # unverified U
 index_3 = (nrow(cad)+1):nrow(cad_pseudo)  # unverified 2U
 # M-1 model, components: a = disease, b = diagnostic, c = missing data mechanism
 # initialize values
@@ -164,8 +164,8 @@ for (t in 1:max_t) {
   su_model1b = summary(model1b)
   coef_1b = su_model1b$coefficients
   fitted_pb = model1b$fitted.values
-  # c -- P(R|T)
-  model1c = glm(R ~ T + D, data = cad_pseudo, family = "binomial", weight = weight_k)
+  # c -- P(V|T)
+  model1c = glm(V ~ T + D, data = cad_pseudo, family = "binomial", weight = weight_k)
   su_model1c = summary(model1c)
   coef_1c = su_model1c$coefficients
   fitted_pc = model1c$fitted.values
@@ -176,8 +176,8 @@ for (t in 1:max_t) {
   ys = list(model1a$y, model1b$y, model1c$y)
   p0 = (fitted_ps[[1]]^ys[[1]]) * ((1 - fitted_ps[[1]])^(1 - ys[[1]]))  # P(D)
   p1 = (fitted_ps[[2]]^ys[[2]]) * ((1 - fitted_ps[[2]])^(1 - ys[[2]]))  # P(T|D)
-  p2 = (fitted_ps[[3]]^ys[[3]]) * ((1 - fitted_ps[[3]])^(1 - ys[[3]]))  # P(R|T)
-  pk = p0 * p1 * p2  # P(R,T,D|X)
+  p2 = (fitted_ps[[3]]^ys[[3]]) * ((1 - fitted_ps[[3]])^(1 - ys[[3]]))  # P(V|T,D)
+  pk = p0 * p1 * p2  # P(V,T,D)
   weight_k[index_2] = pk[index_2] / (pk[index_2] + pk[index_3])
   weight_k[index_3] = 1 - weight_k[index_2]
   # next iteration
@@ -205,8 +205,8 @@ for (t in 1:max_t) {
   su_model2b = summary(model2b)
   coef_2b = su_model2b$coefficients
   fitted_pb = model2b$fitted.values
-  # c -- P(R|T)
-  model2c = glm(R ~ T + X1 + D, data = cad_pseudo, family = "binomial", weight = weight_k)
+  # c -- P(V|T)
+  model2c = glm(V ~ T + X1 + D, data = cad_pseudo, family = "binomial", weight = weight_k)
   su_model2c = summary(model2c)
   coef_2c = su_model2c$coefficients
   fitted_pc = model2c$fitted.values
@@ -217,8 +217,8 @@ for (t in 1:max_t) {
   ys = list(model2a$y, model2b$y, model2c$y)
   p0 = (fitted_ps[[1]]^ys[[1]]) * ((1 - fitted_ps[[1]])^(1 - ys[[1]]))  # P(D)
   p1 = (fitted_ps[[2]]^ys[[2]]) * ((1 - fitted_ps[[2]])^(1 - ys[[2]]))  # P(T|D)
-  p2 = (fitted_ps[[3]]^ys[[3]]) * ((1 - fitted_ps[[3]])^(1 - ys[[3]]))  # P(R|T)
-  pk = p0 * p1 * p2  # P(R,T,D|X)
+  p2 = (fitted_ps[[3]]^ys[[3]]) * ((1 - fitted_ps[[3]])^(1 - ys[[3]]))  # P(V|T,D,X)
+  pk = p0 * p1 * p2  # P(V,T,D|X)
   weight_k[index_2] = pk[index_2] / (pk[index_2] + pk[index_3])
   weight_k[index_3] = 1 - weight_k[index_2]
   # next iteration
@@ -245,4 +245,4 @@ rownames(snsp) = c("Complete-case Analysis","B&G Count",
                    "EM Algorithm MNAR","EM Algorithm MNAR with Covariate")
 colnames(snsp) = c("Sensitivity","Specificity")
 tbl_compare = round(snsp, 3)
-knitr::kable(tbl_compare, "simple")
+knitr::kable(tbl_compare, "simple")  # or "html", "latex", "pipe", "rst"
