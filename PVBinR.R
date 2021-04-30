@@ -240,8 +240,8 @@ sp4x = sum((1 - prediction(model2b, data=cad_0)$fitted) * (1 - prediction(model2
 snsp = c(sn0,sp0,sn1,sp1,sn2,sp2,sn2x,sp2x,sn3,sp3,sn3x,sp3x,sn3a,sp3a,sn3ax,sp3ax,
          sn4,sp4,sn4x,sp4x)
 snsp = matrix(snsp, ncol = 2, nrow = length(snsp)/2, byrow = T)
-rownames(snsp) = c("Complete-case Analysis","B&G Count",
-                   "B&G Regression","B&G Regression with Covariate",
+rownames(snsp) = c("Complete-case Analysis","BG Count",
+                   "EBG Regression","EBG Regression with Covariate",
                    "Multiple Imputation (LogReg)","Multiple Imputation with Covariate (LogReg)",
                    "Multiple Imputation (PMM)","Multiple Imputation with Covariate (PMM)",
                    "EM Algorithm MNAR","EM Algorithm MNAR with Covariate")

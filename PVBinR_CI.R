@@ -81,8 +81,8 @@ sp_calc_with_var = function(data) {
 }
 
 # Other options
-seednum = 123  # seednum for bootstrap and MI
-m = 1000  # number of imputed data sets for MI
+seednum = 12345  # seednum for bootstrap and MI
+m = 85  # number of imputed data sets for MI
 b = 999  # number of bootstrap
 
 # Complete-Case Analysis
