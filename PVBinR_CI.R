@@ -26,21 +26,24 @@ library(prediction)
 sessionInfo()
 
 # Functions
-# For use with bootstrap
-# Sn
-sn_calc = function(data, indices) {
-  d = data[indices, ]
+# For use with CCA, MI
+# Sn with variance
+sn_calc_with_var = function(data) {
+  d = data
   tbl = table(d$T, d$D)
   sn = tbl[2,2]/sum(tbl[,2])
-  return(sn)
+  var = tbl[2,2]*tbl[1,2] / sum(tbl[,2])^3
+  return(cbind(sn = sn, sn_var = var))
 }
-# Sn
-sp_calc = function(data, indices) {
-  d = data[indices, ]
+# Sp with variance
+sp_calc_with_var = function(data) {
+  d = data
   tbl = table(d$T, d$D)
   sp = tbl[1,1]/sum(tbl[,1])
-  return(sp)
+  var = tbl[1,1]*tbl[2,1] / sum(tbl[,1])^3
+  return(cbind(sp = sp, sp_var = var))
 }
+# For use with bootstrap
 # Sn Sp for EBG using GLM
 snsp_ebg = function(data, indices) {
   d = data[indices,]
@@ -62,23 +65,6 @@ snsp_ebgx = function(data, indices) {
   sp = sum((1-data_minus$T)*(1-preds)) / sum(1-preds)  # P(T=0|D=0,X)
   return(cbind(sn, sp))
 }
-# For use with MI, Rubin's rule to calculate variance
-# Sn with variance
-sn_calc_with_var = function(data) {
-  d = data
-  tbl = table(d$T, d$D)
-  sn = tbl[2,2]/sum(tbl[,2])
-  var = tbl[2,2]*tbl[1,2] / (tbl[2,2]+tbl[1,2])^3
-  return(cbind(sn = sn, sn_var = var))
-}
-# Sp with variance
-sp_calc_with_var = function(data) {
-  d = data
-  tbl = table(d$T, d$D)
-  sp = tbl[1,1]/sum(tbl[,1])
-  var = tbl[1,1]*tbl[2,1] / (tbl[1,1]+tbl[2,1])^3
-  return(cbind(sp = sp, sp_var = var))
-}
 
 # Other options
 seednum = 12345  # seednum for bootstrap and MI
@@ -87,13 +73,15 @@ b = 999  # number of bootstrap
 
 # Complete-Case Analysis
 # sn
-sn_cc = sn_calc(na.omit(data))
-sn_cc_se = sqrt(sn_cc*(1-sn_cc)/sum(na.omit(data)$D==1))
+sn_cc_all = sn_calc_with_var(na.omit(data))
+sn_cc = sn_cc_all[,"sn"]
+sn_cc_se = sqrt(sn_cc_all[,"sn_var"])
 sn_cc_ci = sn_cc + c(-1,1) * qnorm(1 - 0.05/2) * sn_cc_se
 c(sn_cc, sn_cc_se, sn_cc_ci)
 # sp
-sp_cc = sp_calc(na.omit(data))
-sp_cc_se = sqrt(sp_cc*(1-sp_cc)/sum(na.omit(data)$D==0))
+sp_cc_all = sp_calc_with_var(na.omit(data))
+sp_cc = sp_cc_all[,"sp"]
+sp_cc_se = sqrt(sp_cc_all[,"sp_var"])
 sp_cc_ci = sp_cc + c(-1,1) * qnorm(1 - 0.05/2) * sp_cc_se
 c(sp_cc, sp_cc_se, sp_cc_ci)
 
@@ -222,88 +210,6 @@ sp_mi_logregx_se = sqrt(sp_mi_logregx_pool$t)
 sp_mi_logregx_ci = sp_mi_logregx_pool$qbar + c(-1,1) * t_sp * sp_mi_logregx_se
 c(sp_mi_logregx, sp_mi_logregx_se, sp_mi_logregx_ci)
 
-# Multiple Imputation, PMM
-
-# Setup - no covariate
-data1 = data[, c("T","D")]  # select only T & D, else MI use all variables for imputation
-data1$D = as.factor(data1$D)  # D as factor
-
-data_mi_pmm = mice(data1, m = m, method = "pmm", seed = seednum, print = F)  # MIDS class
-data_mi_pmm_data = complete(data_mi_pmm, "all")  # imputed data
-
-# Imputed Sn, Sp with var each
-sn_mi_pmm_imp = t(sapply(data_mi_pmm_data, sn_calc_with_var))
-colnames(sn_mi_pmm_imp) = c("sn", "sn_var")
-sp_mi_pmm_imp = t(sapply(data_mi_pmm_data, sp_calc_with_var))
-colnames(sp_mi_pmm_imp) = c("sp", "sp_var")
-
-# Pooled Sn, Sp
-sn_mi_pmm_pool = pool.scalar(Q = sn_mi_pmm_imp[,"sn"], U = sn_mi_pmm_imp[,"sn_var"])
-sp_mi_pmm_pool = pool.scalar(Q = sp_mi_pmm_imp[,"sp"], U = sp_mi_pmm_imp[,"sp_var"])
-
-# Point & CI
-# sn
-sn_mi_pmm = sn_mi_pmm_pool$qbar
-# z-dist
-# sn_mi_pmm_ci = sn_mi_pmm_pool$qbar + c(-1,1) * qnorm(1 - 0.05/2) * sqrt(sn_mi_pmm_pool$t)
-# t-dist, Rubin's rule
-v_sn = (m-1)*(1+(sn_mi_pmm_pool$ubar/((1+1/m)*sn_mi_pmm_pool$b)))^2
-t_sn = qt((1-0.05/2), v_sn)
-sn_mi_pmm_se = sqrt(sn_mi_pmm_pool$t)
-sn_mi_pmm_ci = sn_mi_pmm_pool$qbar + c(-1,1) * t_sn * sn_mi_pmm_se
-c(sn_mi_pmm, sn_mi_pmm_se, sn_mi_pmm_ci)
-# sp
-sp_mi_pmm = sp_mi_pmm_pool$qbar
-# z-distr
-# sp_mi_pmm_ci = sp_mi_pmm_pool$qbar + c(-1,1) * qnorm(1 - 0.05/2) * sqrt(sp_mi_pmm_pool$t)
-# t-dist, Rubin's rule
-v_sp = (m-1)*(1+(sp_mi_pmm_pool$ubar/((1+1/m)*sp_mi_pmm_pool$b)))^2
-t_sp = qt((1-0.05/2), v_sp)
-sp_mi_pmm_se = sqrt(sp_mi_pmm_pool$t)
-sp_mi_pmm_ci = sp_mi_pmm_pool$qbar + c(-1,1) * t_sp * sp_mi_pmm_se
-c(sp_mi_pmm, sp_mi_pmm_se, sp_mi_pmm_ci)
-
-# Multiple Imputation, PMM, with one covariate
-
-# Setup - no covariate
-data1 = data[, c("T","D","X1")]  # select only T, D & X1, else MI use all variables for imputation
-data1$D = as.factor(data1$D)  # D as factor
-
-data_mi_pmmx = mice(data1, m = m, method = "pmm", seed = seednum, print = F)  # MIDS class
-data_mi_pmmx_data = complete(data_mi_pmmx, "all")  # imputed data
-
-# Imputed Sn, Sp with var each
-sn_mi_pmmx_imp = t(sapply(data_mi_pmmx_data, sn_calc_with_var))
-colnames(sn_mi_pmmx_imp) = c("sn", "sn_var")
-sp_mi_pmmx_imp = t(sapply(data_mi_pmmx_data, sp_calc_with_var))
-colnames(sp_mi_pmmx_imp) = c("sp", "sp_var")
-
-# Pooled Sn, Sp
-sn_mi_pmmx_pool = pool.scalar(Q = sn_mi_pmmx_imp[,"sn"], U = sn_mi_pmmx_imp[,"sn_var"])
-sp_mi_pmmx_pool = pool.scalar(Q = sp_mi_pmmx_imp[,"sp"], U = sp_mi_pmmx_imp[,"sp_var"])
-
-# Point & CI
-# sn
-sn_mi_pmmx = sn_mi_pmmx_pool$qbar
-# z-dist
-# sn_mi_pmmx_ci = sn_mi_pmmx_pool$qbar + c(-1,1) * qnorm(1 - 0.05/2) * sqrt(sn_mi_pmmx_pool$t)
-# t-dist, Rubin's rule
-v_sn = (m-1)*(1+(sn_mi_pmmx_pool$ubar/((1+1/m)*sn_mi_pmmx_pool$b)))^2
-t_sn = qt((1-0.05/2), v_sn)
-sn_mi_pmmx_se = sqrt(sn_mi_pmmx_pool$t)
-sn_mi_pmmx_ci = sn_mi_pmmx_pool$qbar + c(-1,1) * t_sn * sn_mi_pmmx_se
-c(sn_mi_pmmx, sn_mi_pmmx_se, sn_mi_pmmx_ci)
-# sp
-sp_mi_pmmx = sp_mi_pmmx_pool$qbar
-# z-distr
-# sp_mi_pmmx_ci = sp_mi_pmmx_pool$qbar + c(-1,1) * qnorm(1 - 0.05/2) * sqrt(sp_mi_pmmx_pool$t)
-# t-dist, Rubin's rule
-v_sp = (m-1)*(1+(sp_mi_pmmx_pool$ubar/((1+1/m)*sp_mi_pmmx_pool$b)))^2
-t_sp = qt((1-0.05/2), v_sp)
-sp_mi_pmmx_se = sqrt(sp_mi_pmmx_pool$t)
-sp_mi_pmmx_ci = sp_mi_pmmx_pool$qbar + c(-1,1) * t_sp * sp_mi_pmmx_se
-c(sp_mi_pmmx, sp_mi_pmmx_se, sp_mi_pmmx_ci)
-
 # EM Algorithm, MNAR
 # Kosinski & Barnhart, 2003
 # Components: a = disease, b = diagnostic, c = missing data mechanism
@@ -364,7 +270,7 @@ pvb_em = function(data_pseudo, t_max, cutoff, a, b, c, index_1, index_2, index_3
       # printing frequency
       if(t %% 50 == 0) {cat(paste("Current t =", t, "\n"))}
       t = t + 1
-    }  # careful, t + 1 code only works with while in R, not with for
+    }
   }
   
   # Outputs
@@ -453,7 +359,7 @@ sp_em_boot_ci = sp_em_boot_ci_data$bca[4:5]
 # MNAR with Covariate: a = D~X1, b = T~D+X1, c = V~T+X1+D
 # bootstrap
 # Setup
-t_max = 5000  # max iteration, t
+t_max = 5000  # max iteration, t, needs more iter with addition of X1
 cutoff = 0.0002  # early stopping rule if changes in coef < cutoff
 ptm0 = proc.time()
 set.seed(seednum)
@@ -483,26 +389,19 @@ snsp = c(sn_cc, sn_cc_se, sn_cc_ci, sp_cc, sp_cc_se, sp_cc_ci,
          sn_ebgx_boot, sn_ebgx_boot_se, sn_ebgx_boot_ci, sp_ebgx_boot, sp_ebgx_boot_se, sp_ebg_boot_ci,
          sn_mi_logreg, sn_mi_logreg_se, sn_mi_logreg_ci, sp_mi_logreg, sp_mi_logreg_se, sp_mi_logreg_ci,
          sn_mi_logregx, sn_mi_logregx_se, sn_mi_logregx_ci, sp_mi_logregx, sp_mi_logregx_se, sp_mi_logregx_ci,
-         sn_mi_pmm, sn_mi_pmm_se, sn_mi_pmm_ci, sp_mi_pmm, sp_mi_pmm_se, sp_mi_pmm_ci,
-         sn_mi_pmmx, sn_mi_pmmx_se, sn_mi_pmmx_ci, sp_mi_pmmx, sp_mi_pmmx_se, sp_mi_pmmx_ci,
          sn_em_boot, sn_em_boot_se, sn_em_boot_ci, sp_em_boot, sp_em_boot_se, sp_em_boot_ci,
          sn_emx_boot, sn_emx_boot_se, sn_emx_boot_ci, sp_emx_boot, sp_emx_boot_se, sp_emx_boot_ci)
 snsp = matrix(snsp, ncol = 8, nrow = length(snsp)/8, byrow = T)
 rownames(snsp) = c("Complete-case Analysis",
-                   "EBG LogReg - Bootstrap CI",
-                   "EBG LogReg with Covariate - Bootstrap CI",
+                   "EBG Regression - Bootstrap CI",
+                   "EBG Regression with Covariate - Bootstrap CI",
                    "Multiple Imputation (LogReg)",
                    "Multiple Imputation with Covariate (LogReg)",
-                   "Multiple Imputation (PMM)",
-                   "Multiple Imputation with Covariate (PMM)",
-                   "EM Algorithm MNAR - Bootstrap CI",
-                   "EM Algorithm MNAR with Covariate - Bootstrap CI")
-colnames(snsp) = c("Sensitivity", "SE", "2.5%", "97.5%", "Specificity", "SE", "2.5%", "97.5%")
+                   "EM Alg. MNAR - Bootstrap CI",
+                   "EM Alg. MNAR with Covariate - Bootstrap CI")
+colnames(snsp) = c("Sen", "SE", "2.5%", "97.5%", "Spe", "SE", "2.5%", "97.5%")
 tbl_compare = round(snsp, 3)
 knitr::kable(tbl_compare, "simple")  # "simple", html", "latex", "pipe", "rst"
-# Comments:
-# PMM: CI out of bound, lower k donors gives higher Sn, lower se,
-# higher k gives lower Sn, higher se, out of bound CI
 
 # Save to text files for reference
 time_tag = format(Sys.time(), "%Y%m%d_%H%M%S")

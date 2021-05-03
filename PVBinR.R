@@ -62,7 +62,6 @@ m = 85  # number of imputed data sets
 seednum = 12345
 cad1 = cad[, c("T","D")]  # select only T & D, else MI use all variables for imputation
 cad1$D = as.factor(cad1$D); data_impute = mice(cad1, m = m, method = "logreg", seed = seednum)  # logistic regression
-# results dependent on seed & method, seems pmm less variant than logreg
 data_impute$method
 cad_mi = complete(data_impute, action = "repeated")  # MI data
 str(cad_mi)
@@ -92,42 +91,6 @@ for (i in 1:m) {
 }
 sn3x = mean(sn3m); sn3x
 sp3x = mean(sp3m); sp3x
-
-# PMM
-m = 85  # number of imputed data sets
-seednum = 12345
-cad1 = cad[, c("T","D")]  # select only T & D, else MI use all variables for imputation
-cad1$D = as.factor(cad1$D); data_impute = mice(cad1, m = m, method = "pmm", seed = seednum)  # logistic regression
-# results dependent on seed & method, seems pmm less variant than logreg
-data_impute$method
-cad_mi = complete(data_impute, action = "repeated")  # MI data
-str(cad_mi)
-# loop to calculate sn & spe
-sn3m = sp3m = rep(NA, m)
-for (i in 1:m) {
-  tbl = table(T=cad_mi[,i],D=cad_mi[,m+i])
-  sn3m[i] = tbl[2,2]/sum(tbl[,2])
-  sp3m[i] = tbl[1,1]/sum(tbl[,1])
-}
-sn3a = mean(sn3m); sn3a
-sp3a = mean(sp3m); sp3a
-# PMM, one covariate
-m = 85  # number of imputed data sets = % missing observations
-seednum = 12345
-cad1 = cad[, c("T","D", "X1")]  # select only T, D and X1, else MI use all variables for imputation
-cad1$D = as.factor(cad1$D); data_impute = mice(cad1, m = m, method = "pmm", seed = seednum)  # logistic regression
-data_impute$method
-cad_mi = complete(data_impute, action = "repeated")  # MI data
-# names(cad_mi)
-# loop to calculate sn & spe
-sn3m = sp3m = rep(NA, m)
-for (i in 1:m) {
-  tbl = table(T=cad_mi[,i],D=cad_mi[,m+i])
-  sn3m[i] = tbl[2,2]/sum(tbl[,2])
-  sp3m[i] = tbl[1,1]/sum(tbl[,1])
-}
-sn3ax = mean(sn3m); sn3ax
-sp3ax = mean(sp3m); sp3ax
 
 # EM Algorithm, Konsinski & Barnhart, 2003, MNAR
 # pseudo-data
@@ -237,13 +200,11 @@ sp4x = sum((1 - prediction(model2b, data=cad_0)$fitted) * (1 - prediction(model2
   sum(1 - prediction(model2a, data=cad_0)$fitted); sp4x  # P(T=0|D=0,X1)
 
 # Compare
-snsp = c(sn0,sp0,sn1,sp1,sn2,sp2,sn2x,sp2x,sn3,sp3,sn3x,sp3x,sn3a,sp3a,sn3ax,sp3ax,
-         sn4,sp4,sn4x,sp4x)
+snsp = c(sn0,sp0,sn1,sp1,sn2,sp2,sn2x,sp2x,sn3,sp3,sn3x,sp3x,sn4,sp4,sn4x,sp4x)
 snsp = matrix(snsp, ncol = 2, nrow = length(snsp)/2, byrow = T)
 rownames(snsp) = c("Complete-case Analysis","BG Count",
                    "EBG Regression","EBG Regression with Covariate",
                    "Multiple Imputation (LogReg)","Multiple Imputation with Covariate (LogReg)",
-                   "Multiple Imputation (PMM)","Multiple Imputation with Covariate (PMM)",
                    "EM Algorithm MNAR","EM Algorithm MNAR with Covariate")
 colnames(snsp) = c("Sensitivity","Specificity")
 tbl_compare = round(snsp, 3)
