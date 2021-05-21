@@ -49,7 +49,7 @@ snsp_ebg = function(data, indices) {
   d = data[indices,]
   # data = complete case only for modeling
   fit = glm(D ~ T, data = d, family = "binomial")
-  preds = prediction(fit, data_minus)$fitted  # Predicted on incomplete data
+  preds = prediction(fit, data_minus)$fitted  # Predicted for complete & incomplete data
   sn = sum(data_minus$T*preds) / sum(preds)  # P(T=1|D=1)
   sp = sum((1-data_minus$T)*(1-preds)) / sum(1-preds)  # P(T=0|D=0)
   return(cbind(sn, sp))
@@ -60,7 +60,7 @@ snsp_ebgx = function(data, indices) {
   # data = complete case only for modeling
   # fit = glm(D ~ T + X1, data = d, family = "binomial")  # Alonzo, unsaturated
   fit = glm(D ~ T*X1, data = d, family = "binomial")  # saturated
-  preds = prediction(fit, data_minus)$fitted  # Predicted on incomplete data
+  preds = prediction(fit, data_minus)$fitted  # Predicted for complete & incomplete data
   sn = sum(data_minus$T*preds) / sum(preds)  # P(T=1|D=1,X)
   sp = sum((1-data_minus$T)*(1-preds)) / sum(1-preds)  # P(T=0|D=0,X)
   return(cbind(sn, sp))

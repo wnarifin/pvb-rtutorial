@@ -44,14 +44,14 @@ sp1 = upper1 / (upper1+lower1); sp1
 # B&G, Regression Method in Alonzo 2005
 model1 = glm(D ~ T, data = cad, family = "binomial")  # Modelled using complete data
 summary(model1)
-preds = prediction(model1, cad_)$fitted  # Predicted on incomplete data
+preds = prediction(model1, cad_)$fitted  # Predicted for complete & incomplete data
 sn2 = sum(cad_$T*preds) / sum(preds); sn2            # P(T=1|D=1)
 sp2 = sum((1-cad_$T)*(1-preds)) / sum(1-preds); sp2  # P(T=0|D=0)
 
 # B&G, Regression Method in Alonzo 2005, with one covariate
 model1x = glm(D ~ T*X1, data = cad, family = "binomial")  # Modelled using complete data
 summary(model1x)
-preds = prediction(model1x, cad_)$fitted  # Predicted on incomplete data
+preds = prediction(model1x, cad_)$fitted  # Predicted for complete & incomplete data
 sn2x = sum(cad_$T*preds) / sum(preds); sn2x            # P(T=1|D=1,X1)
 sp2x = sum((1-cad_$T)*(1-preds)) / sum(1-preds); sp2x  # P(T=0|D=0,X1)
 
