@@ -386,7 +386,7 @@ sp_emx_boot_ci = sp_emx_boot_ci_data$bca[4:5]
 # Compare all methods
 snsp = c(sn_cc, sn_cc_se, sn_cc_ci, sp_cc, sp_cc_se, sp_cc_ci,
          sn_ebg_boot, sn_ebg_boot_se, sn_ebg_boot_ci, sp_ebg_boot, sp_ebg_boot_se, sp_ebg_boot_ci,
-         sn_ebgx_boot, sn_ebgx_boot_se, sn_ebgx_boot_ci, sp_ebgx_boot, sp_ebgx_boot_se, sp_ebg_boot_ci,
+         sn_ebgx_boot, sn_ebgx_boot_se, sn_ebgx_boot_ci, sp_ebgx_boot, sp_ebgx_boot_se, sp_ebgx_boot_ci,
          sn_mi_logreg, sn_mi_logreg_se, sn_mi_logreg_ci, sp_mi_logreg, sp_mi_logreg_se, sp_mi_logreg_ci,
          sn_mi_logregx, sn_mi_logregx_se, sn_mi_logregx_ci, sp_mi_logregx, sp_mi_logregx_se, sp_mi_logregx_ci,
          sn_em_boot, sn_em_boot_se, sn_em_boot_ci, sp_em_boot, sp_em_boot_se, sp_em_boot_ci,
