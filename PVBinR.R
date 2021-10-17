@@ -1,211 +1,118 @@
-# PVB Correction
+# Info ====
+# PVB Correction Tutorial
+# Author: Wan Nor Arifin
 
-# Data, 2003a Kosinski & Barnhart
+
+# Load PVBcorrect package ====
+
+# Install the package, if this is not yet installed, uncomment the lines below
+# install.packages("devtools")  # uncomment
+# devtools::install_github("wnarifin/PVBcorrect")  # uncomment
+library(PVBcorrect)
+
+
+# Load and explore data ====
+
+# Data, Kosinski & Barnhart (2003)
+# T = SPECT thallium test: 1 = positive, 0 = negative.
+# D = CAD (disease) status: 1 = yes, 0 = no; NA = not verified.
 # X1 = Gender: 1 = male, 0 = female.
 # X2 = Stress mode: 1 = dipyridamole, 0 = exercise.
 # X3 = Age: 1 = age ≥ 60 years, 0 = age < 60 years.
-# T = SPECT thallium test: 1 = positive, 0 = negative.
-# D = CAD (disease) status: 1 = yes, 0 = no; NA = not verified.
-cad = read.csv("2003kosinski_cad.csv")
-str(cad)
 
-# Verification status
-cad$V = 1  # V = Verified: 1 = yes, 0 = no
-cad[is.na(cad$D), "V"] = 0
+# Load data
+?cad_pvb  # data info, built in data in the package
 
-# Percent missing
-mean(is.na(cad$D))*100
+# Explore the data
+str(cad_pvb)
+head(cad_pvb); tail(cad_pvb)
+summary(cad_pvb)
 
-# Library
-library(prediction)
-library(mice)
+# View table
+view_table(data = cad_pvb, test = "T", disease = "D")
+view_table(data = cad_pvb, test = "T", disease = "D", show_unverified = TRUE)
 
-# Session Info
-sessionInfo()
 
-# Complete-Case Analysis
-tbl = table(cad[, c("T", "D")]); tbl
-sn0 = tbl[2,2]/sum(tbl[,2]); sn0
-sp0 = tbl[1,1]/sum(tbl[,1]); sp0
+# Obtain the accuracy estimates ====
 
-# Recode NA to -1 for ease of calculation for B&G
-cad_ = cad
-cad_[is.na(cad_$D), "D"] = -1  # recode NA as -1, this will be -1*0=0 for unverified. Else NA*0=NA.
+## CCA ====
 
-# B&G, Count Method in Begg & Greenes 1983
-tbl_ = table(cad_[, c("T", "D")]); addmargins(tbl_)  # -1 column -- unverified cases
-upper = (sum(cad_$T)/nrow(cad_)) * (sum(cad_$D*cad_$T*cad_$V)/sum(cad_$T*cad_$V))
-lower = (sum(1-cad_$T)/nrow(cad_)) * (sum(cad_$D*(1-cad_$T)*cad_$V)/sum((1-cad_$T)*cad_$V))
-sn1 = upper / (upper+lower); sn1
-upper1 = (sum(1-cad_$T)/nrow(cad_)) * (sum((1-cad_$D)*(1-cad_$T)*cad_$V)/sum((1-cad_$T)*cad_$V))
-lower1 = (sum(cad_$T)/nrow(cad_)) * (sum((1-cad_$D)*cad_$T*cad_$V)/sum(cad_$T*cad_$V))
-sp1 = upper1 / (upper1+lower1); sp1
+# no covariate
+cca_out = acc_cca(data = cad_pvb, test = "T", disease = "D", ci = TRUE)
+cca_est = cca_out$acc_results
+cca_est
 
-# B&G, Regression Method in Alonzo 2005
-model1 = glm(D ~ T, data = cad, family = "binomial")  # Modelled using complete data
-summary(model1)
-preds = prediction(model1, cad_)$fitted  # Predicted for complete & incomplete data
-sn2 = sum(cad_$T*preds) / sum(preds); sn2            # P(T=1|D=1)
-sp2 = sum((1-cad_$T)*(1-preds)) / sum(1-preds); sp2  # P(T=0|D=0)
+## EBG ====
 
-# B&G, Regression Method in Alonzo 2005, with one covariate
-model1x = glm(D ~ T*X1, data = cad, family = "binomial")  # Modelled using complete data
-summary(model1x)
-preds = prediction(model1x, cad_)$fitted  # Predicted for complete & incomplete data
-sn2x = sum(cad_$T*preds) / sum(preds); sn2x            # P(T=1|D=1,X1)
-sp2x = sum((1-cad_$T)*(1-preds)) / sum(1-preds); sp2x  # P(T=0|D=0,X1)
+# no covariate
+ebg_out = acc_ebg(data = cad_pvb, test = "T", disease = "D", ci = TRUE, ci_type = "bca",
+                  seednum = 12345, R = 999)
+ebg_est = ebg_out$acc_results
+ebg_est
 
-# Multiple Imputation, Logistic Regression
-# Modified codes from deGroot et al 2008
-# Logistic regression
-m = 85  # number of imputed data sets
-seednum = 12345
-cad1 = cad[, c("T","D")]  # select only T & D, else MI use all variables for imputation
-cad1$D = as.factor(cad1$D); data_impute = mice(cad1, m = m, method = "logreg", seed = seednum)  # logistic regression
-data_impute$method
-cad_mi = complete(data_impute, action = "repeated")  # MI data
-str(cad_mi)
-# loop to calculate sn & spe
-sn3m = sp3m = rep(NA, m)
-for (i in 1:m) {
-  tbl = table(T=cad_mi[,i],D=cad_mi[,m+i])
-  sn3m[i] = tbl[2,2]/sum(tbl[,2])
-  sp3m[i] = tbl[1,1]/sum(tbl[,1])
-}
-sn3 = mean(sn3m); sn3
-sp3 = mean(sp3m); sp3
-# MI by logistic regression, one covariate
-m = 85  # number of imputed data sets = % missing observations
-seednum = 12345
-cad1 = cad[, c("T","D", "X1")]  # select only T, D and X1, else MI use all variables for imputation
-cad1$D = as.factor(cad1$D); data_impute = mice(cad1, m = m, method = "logreg", seed = seednum)  # logistic regression
-data_impute$method
-cad_mi = complete(data_impute, action = "repeated")  # MI data
-# names(cad_mi)
-# loop to calculate sn & spe
-sn3m = sp3m = rep(NA, m)
-for (i in 1:m) {
-  tbl = table(T=cad_mi[,i],D=cad_mi[,m+i])
-  sn3m[i] = tbl[2,2]/sum(tbl[,2])
-  sp3m[i] = tbl[1,1]/sum(tbl[,1])
-}
-sn3x = mean(sn3m); sn3x
-sp3x = mean(sp3m); sp3x
+# with covariate
+ebgx_out = acc_ebg(data = cad_pvb, test = "T", disease = "D", covariate = "X3", saturated_model = TRUE,
+                   ci = TRUE, ci_type = "bca", seednum = 12345, R = 999)
+ebgx_est = ebgx_out$acc_results
+ebgx_est
 
-# EM Algorithm, Konsinski & Barnhart, 2003, MNAR
-# pseudo-data
-cad$V = 1  # V = Verified: 1 = yes, 0 = no
-cad[is.na(cad$D), "V"] = 0
-cad_pseudo = rbind(cad, cad[cad$V == 0, ])  # replicate U observation
-str(cad_pseudo)
-sum(is.na(cad_pseudo$D))  # 2217*2 = 4434
-table(cad_pseudo$T)
-# create 0, 1 for 2U rows
-cad_pseudo[(sum(cad$V)+1):nrow(cad), "D"] = 0        # 1st U rows
-cad_pseudo[(nrow(cad)+1):nrow(cad_pseudo), "D"] = 1  # 2nd U rows
-# view
-head(cad_pseudo)
-head(cad_pseudo[(sum(cad$V)+1):nrow(cad),])
-head(cad_pseudo[(nrow(cad)+1):nrow(cad_pseudo),])
-n_u = nrow(cad_pseudo)  # total cases + U
-# index k
-index_1 = which(cad$V == 1)  # verified
-index_2 = (sum(cad$V)+1):nrow(cad)  # unverified U
-index_3 = (nrow(cad)+1):nrow(cad_pseudo)  # unverified 2U
-# M-1 model, components: a = disease, b = diagnostic, c = missing data mechanism
-# initialize values
-weight_k = rep(1, nrow(cad_pseudo))  # init weight = 1 for all
-coef_1 = vector("list", 0)
-max_t = 500  # may increase
-# EM Algorithm Iteration
-for (t in 1:max_t) {
-  # a -- P(D)
-  model1a = glm(D ~ 1, data = cad_pseudo, family = "binomial", weight = weight_k)
-  su_model1a = summary(model1a)
-  coef_1a = su_model1a$coefficients
-  fitted_pa = model1a$fitted.values
-  # b -- P(T|D)
-  model1b = glm(T ~ D, data = cad_pseudo, family = "binomial", weight = weight_k)
-  su_model1b = summary(model1b)
-  coef_1b = su_model1b$coefficients
-  fitted_pb = model1b$fitted.values
-  # c -- P(V|T)
-  model1c = glm(V ~ T + D, data = cad_pseudo, family = "binomial", weight = weight_k)
-  su_model1c = summary(model1c)
-  coef_1c = su_model1c$coefficients
-  fitted_pc = model1c$fitted.values
-  # all
-  coef_1 = append(coef_1, list(list(coef_1a, coef_1b, coef_1c)))
-  # weight
-  fitted_ps = list(fitted_pa, fitted_pb, fitted_pc)
-  ys = list(model1a$y, model1b$y, model1c$y)
-  p0 = (fitted_ps[[1]]^ys[[1]]) * ((1 - fitted_ps[[1]])^(1 - ys[[1]]))  # P(D)
-  p1 = (fitted_ps[[2]]^ys[[2]]) * ((1 - fitted_ps[[2]])^(1 - ys[[2]]))  # P(T|D)
-  p2 = (fitted_ps[[3]]^ys[[3]]) * ((1 - fitted_ps[[3]])^(1 - ys[[3]]))  # P(V|T,D)
-  pk = p0 * p1 * p2  # P(V,T,D)
-  weight_k[index_2] = pk[index_2] / (pk[index_2] + pk[index_3])
-  weight_k[index_3] = 1 - weight_k[index_2]
-  # next iteration
-  t = t + 1
-}
-coef_1[[max_t]]
-sn4 = predict(model1b, list(D=1), type="response"); sn4      # P(T=1|D=1)
-sp4 = 1 - predict(model1b, list(D=0), type="response"); sp4  # P(T=0|D=0)
+## MI ====
 
-# EM Algorithm, Konsinski & Barnhart, 2003, MNAR
-# M-2 model, components: a = disease, b = diagnostic, c = missing data mechanism
-# initialize values
-weight_k = rep(1, nrow(cad_pseudo))  # init weight = 1 for all
-coef_2 = vector("list", 0)
-max_t = 500  # may increase
-# EM Algorithm Iteration
-for (t in 1:max_t) {
-  # a -- P(D)
-  model2a = glm(D ~ X1, data = cad_pseudo, family = "binomial", weight = weight_k)
-  su_model2a = summary(model2a)
-  coef_2a = su_model2a$coefficients
-  fitted_pa = model2a$fitted.values
-  # b -- P(T|D)
-  model2b = glm(T ~ D + X1, data = cad_pseudo, family = "binomial", weight = weight_k)
-  su_model2b = summary(model2b)
-  coef_2b = su_model2b$coefficients
-  fitted_pb = model2b$fitted.values
-  # c -- P(V|T)
-  model2c = glm(V ~ T + X1 + D, data = cad_pseudo, family = "binomial", weight = weight_k)
-  su_model2c = summary(model2c)
-  coef_2c = su_model2c$coefficients
-  fitted_pc = model2c$fitted.values
-  # all
-  coef_2 = append(coef_2, list(list(coef_2a, coef_2b, coef_2c)))
-  # weight
-  fitted_ps = list(fitted_pa, fitted_pb, fitted_pc)
-  ys = list(model2a$y, model2b$y, model2c$y)
-  p0 = (fitted_ps[[1]]^ys[[1]]) * ((1 - fitted_ps[[1]])^(1 - ys[[1]]))  # P(D)
-  p1 = (fitted_ps[[2]]^ys[[2]]) * ((1 - fitted_ps[[2]])^(1 - ys[[2]]))  # P(T|D)
-  p2 = (fitted_ps[[3]]^ys[[3]]) * ((1 - fitted_ps[[3]])^(1 - ys[[3]]))  # P(V|T,D,X)
-  pk = p0 * p1 * p2  # P(V,T,D|X)
-  weight_k[index_2] = pk[index_2] / (pk[index_2] + pk[index_3])
-  weight_k[index_3] = 1 - weight_k[index_2]
-  # next iteration
-  t = t + 1
-}
-coef_2[[max_t]]
-# Marginal estimates
-cad_1 = cad_0 = cad
-cad_1$D = 1  # set all D to 1
-cad_0$D = 0  # set all D to 0
-sn4x = sum(prediction(model2b, data=cad_1)$fitted * prediction(model2a, data=cad_1)$fitted) / 
-  sum(prediction(model2a, data=cad_1)$fitted); sn4x      # P(T=1|D=1,X1)
-sp4x = sum((1 - prediction(model2b, data=cad_0)$fitted) * (1 - prediction(model2a, data=cad_0)$fitted)) /
-  sum(1 - prediction(model2a, data=cad_0)$fitted); sp4x  # P(T=0|D=0,X1)
+# no covariate
+mi_out = acc_mi(data = cad_pvb, test = "T", disease = "D", ci = TRUE, seednum = 12345, m = 85)
+mi_est = mi_out$acc_results
+mi_est
 
-# Compare
-snsp = c(sn0,sp0,sn1,sp1,sn2,sp2,sn2x,sp2x,sn3,sp3,sn3x,sp3x,sn4,sp4,sn4x,sp4x)
-snsp = matrix(snsp, ncol = 2, nrow = length(snsp)/2, byrow = T)
-rownames(snsp) = c("Complete-case Analysis","BG Count",
-                   "EBG Regression","EBG Regression with Covariate",
-                   "Multiple Imputation (LogReg)","Multiple Imputation with Covariate (LogReg)",
-                   "EM Algorithm MNAR","EM Algorithm MNAR with Covariate")
-colnames(snsp) = c("Sensitivity","Specificity")
-tbl_compare = round(snsp, 3)
-knitr::kable(tbl_compare, "simple")  # or "html", "latex", "pipe", "rst"
+# with covariate
+mix_out = acc_mi(data = cad_pvb, test = "T", disease = "D", covariate = "X3", ci = TRUE, seednum = 12345, m = 85)
+mix_est = mix_out$acc_results
+mix_est
+
+## EM ====
+
+# no covariate
+# save to an R object for detailed analysis later
+# for sample run, test with low R boot number, will take very long time to finish for large R
+start_time = proc.time()
+em_out = acc_em(data = cad_pvb, test = "T", disease = "D", ci = TRUE, ci_type = "bca",
+                seednum = 12345, R = 999,
+                t_max = 5000, cutoff = 0.0002)
+elapsed_time = proc.time() - start_time; elapsed_time["elapsed"]  # time taken in seconds
+em_est = em_out$acc_results
+em_est
+
+# with covariate, will take some time
+# check the time taken to finish
+startx_time = proc.time()
+emx_out = acc_em(data = cad_pvb, test = "T", disease = "D", covariate = "X3", ci = TRUE, ci_type = "bca",
+                 seednum = 12345, R = 999,
+                 t_max = 50000, cutoff = 0.0002)  # with covariate, better set larger t_max
+elapsedx_time = proc.time() - startx_time; elapsedx_time["elapsed"]  # time taken in seconds
+emx_est = emx_out$acc_results
+emx_est
+
+
+# Print a combined table for all results ====
+tbl_combined = tibble::tibble(
+  Estimates = c("Sensitivity", "SE", "2.5%", "97.5%", "Specificity", "SE", "2.5%", "97.5%", 
+                "PPV", "SE", "2.5%", "97.5%", "NPV", "SE", "2.5%", "97.5%"),
+  CCA = c(t(cca_est["Sn", ]), t(cca_est["Sp", ]), t(cca_est["PPV", ]), t(cca_est["NPV", ])),
+  EBG = c(t(ebg_est["Sn", ]), t(ebg_est["Sp", ]), t(ebg_est["PPV", ]), t(ebg_est["NPV", ])),
+  EBGX = c(t(ebgx_est["Sn", ]), t(ebgx_est["Sp", ]), t(ebgx_est["PPV", ]), t(ebgx_est["NPV", ])),
+  MI = c(t(mi_est["Sn", ]), t(mi_est["Sp", ]), t(mi_est["PPV", ]), t(mi_est["NPV", ])),
+  MIX = c(t(mix_est["Sn", ]), t(mix_est["Sp", ]), t(mix_est["PPV", ]), t(mix_est["NPV", ])),
+  EM = c(t(em_est["Sn", ]), t(em_est["Sp", ]), t(em_est["PPV", ]), t(em_est["NPV", ])),
+  EMX = c(t(emx_est["Sn", ]), t(emx_est["Sp", ]), t(emx_est["PPV", ]), t(emx_est["NPV", ]))
+); tbl_combined
+
+tbl_combined_rnd = tbl_combined
+tbl_combined_rnd[-1] = round(tbl_combined[-1], 3)
+tbl_view = knitr::kable(tbl_combined_rnd, format = "simple",
+             caption = "Comparison of accuracy estimates by PVB correction methods.")
+  # format = "simple", html", "latex", "pipe", "rst"
+tbl_view
+
+# Check EM convergence ====
+# all t should be < t_max for each, will return TRUE
+max(em_out$boot_data$t[, 5]) < 5000  # w/out covariate, all converged
+max(emx_out$boot_data$t[, 5]) < 50000  # with covariate, all converged
